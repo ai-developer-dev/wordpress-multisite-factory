@@ -48,14 +48,14 @@ RUN a2enconf wordpress
 # Enable required Apache modules
 RUN a2enmod rewrite headers expires
 
-# Configure Apache to listen on Railway's PORT environment variable
-RUN sed -i 's/Listen 80/Listen ${PORT:-80}/' /etc/apache2/ports.conf
-
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:${PORT:-80}/health.php || exit 1
 
-EXPOSE ${PORT:-80}
+EXPOSE 80
 
-# Start Apache with proper port substitution
-CMD sed -i "s/80/${PORT:-80}/g" /etc/apache2/sites-available/000-default.conf /etc/apache2/conf-available/wordpress.conf && apache2-foreground
+# Start Apache with proper port substitution for Railway
+CMD sed -i "s/Listen 80/Listen ${PORT:-80}/g" /etc/apache2/ports.conf && \
+    sed -i "s/:80/:${PORT:-80}/g" /etc/apache2/sites-available/000-default.conf && \
+    sed -i "s/*:80/*:${PORT:-80}/g" /etc/apache2/conf-available/wordpress.conf && \
+    apache2-foreground
