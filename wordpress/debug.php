@@ -41,35 +41,56 @@ $database_url = getenv('DATABASE_URL');
 if ($database_url) {
     try {
         $db_parts = parse_url($database_url);
-        $host = $db_parts['host'] . ':' . ($db_parts['port'] ?: 3306);
+        $scheme = $db_parts['scheme'] ?? 'unknown';
+        $host = $db_parts['host'] . ':' . ($db_parts['port'] ?: ($scheme === 'postgres' ? 5432 : 3306));
         $dbname = ltrim($db_parts['path'], '/');
         $user = $db_parts['user'];
         $pass = $db_parts['pass'];
         
+        echo "<strong>Database Type:</strong> $scheme<br>";
         echo "<strong>Attempting connection to:</strong> $host<br>";
         echo "<strong>Database:</strong> $dbname<br>";
         
-        $pdo = new PDO(
-            "mysql:host={$db_parts['host']};port=" . ($db_parts['port'] ?: 3306) . ";dbname=$dbname",
-            $user,
-            $pass,
-            [
+        if ($scheme === 'postgres' || $scheme === 'postgresql') {
+            // PostgreSQL connection
+            $dsn = "pgsql:host={$db_parts['host']};port=" . ($db_parts['port'] ?: 5432) . ";dbname=$dbname";
+            $pdo = new PDO($dsn, $user, $pass, [
                 PDO::ATTR_TIMEOUT => 10,
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-            ]
-        );
-        
-        $stmt = $pdo->query('SELECT VERSION() as version, NOW() as time');
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        echo "✅ <strong>Database Connection: SUCCESS</strong><br>";
-        echo "<strong>MySQL Version:</strong> " . $result['version'] . "<br>";
-        echo "<strong>Database Time:</strong> " . $result['time'] . "<br>";
-        
-        // Test table creation
-        $pdo->exec("CREATE TABLE IF NOT EXISTS debug_test (id INT PRIMARY KEY, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
-        $pdo->exec("INSERT INTO debug_test (id) VALUES (1) ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP");
-        echo "✅ <strong>Table operations: SUCCESS</strong><br>";
+            ]);
+            
+            $stmt = $pdo->query('SELECT version() as version, NOW() as time');
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            echo "✅ <strong>PostgreSQL Connection: SUCCESS</strong><br>";
+            echo "<strong>PostgreSQL Version:</strong> " . $result['version'] . "<br>";
+            echo "<strong>Database Time:</strong> " . $result['time'] . "<br>";
+            
+            // Test table creation
+            $pdo->exec("CREATE TABLE IF NOT EXISTS debug_test (id SERIAL PRIMARY KEY, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+            $pdo->exec("INSERT INTO debug_test (id) VALUES (1) ON CONFLICT (id) DO UPDATE SET created_at = CURRENT_TIMESTAMP");
+            echo "✅ <strong>Table operations: SUCCESS</strong><br>";
+            
+        } else {
+            // MySQL connection
+            $dsn = "mysql:host={$db_parts['host']};port=" . ($db_parts['port'] ?: 3306) . ";dbname=$dbname";
+            $pdo = new PDO($dsn, $user, $pass, [
+                PDO::ATTR_TIMEOUT => 10,
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+            ]);
+            
+            $stmt = $pdo->query('SELECT VERSION() as version, NOW() as time');
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            echo "✅ <strong>MySQL Connection: SUCCESS</strong><br>";
+            echo "<strong>MySQL Version:</strong> " . $result['version'] . "<br>";
+            echo "<strong>Database Time:</strong> " . $result['time'] . "<br>";
+            
+            // Test table creation
+            $pdo->exec("CREATE TABLE IF NOT EXISTS debug_test (id INT PRIMARY KEY, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)");
+            $pdo->exec("INSERT INTO debug_test (id) VALUES (1) ON DUPLICATE KEY UPDATE created_at = CURRENT_TIMESTAMP");
+            echo "✅ <strong>Table operations: SUCCESS</strong><br>";
+        }
         
     } catch (Exception $e) {
         echo "❌ <strong>Database Connection: FAILED</strong><br>";

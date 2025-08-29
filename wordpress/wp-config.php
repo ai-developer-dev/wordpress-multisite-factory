@@ -1,22 +1,38 @@
 <?php
-// WordPress configuration for Railway with MySQL
+// WordPress configuration for Railway with PostgreSQL
 
-// Database configuration from Railway's DATABASE_URL (MySQL)
+// Database configuration from Railway's DATABASE_URL (PostgreSQL)
 $database_url = getenv('DATABASE_URL');
 if ($database_url) {
     $db_parts = parse_url($database_url);
     
-    // For MySQL on Railway
-    define('DB_NAME', ltrim($db_parts['path'], '/'));
-    define('DB_USER', $db_parts['user']);
-    define('DB_PASSWORD', $db_parts['pass']);
-    define('DB_HOST', $db_parts['host'] . ':' . ($db_parts['port'] ?: 3306));
+    // Auto-detect database type from URL scheme
+    $scheme = $db_parts['scheme'] ?? '';
+    
+    if ($scheme === 'postgres' || $scheme === 'postgresql') {
+        // PostgreSQL configuration
+        define('DB_NAME', ltrim($db_parts['path'], '/'));
+        define('DB_USER', $db_parts['user']);
+        define('DB_PASSWORD', $db_parts['pass']);
+        define('DB_HOST', $db_parts['host'] . ':' . ($db_parts['port'] ?: 5432));
+        
+        // Use PostgreSQL for WordPress (requires pg4wp plugin or custom handling)
+        define('DB_TYPE', 'postgresql');
+    } else {
+        // MySQL configuration (fallback)
+        define('DB_NAME', ltrim($db_parts['path'], '/'));
+        define('DB_USER', $db_parts['user']);
+        define('DB_PASSWORD', $db_parts['pass']);
+        define('DB_HOST', $db_parts['host'] . ':' . ($db_parts['port'] ?: 3306));
+        define('DB_TYPE', 'mysql');
+    }
 } else {
-    // Fallback
-    define('DB_NAME', 'railway');
-    define('DB_USER', 'root');
+    // Local development fallback
+    define('DB_NAME', 'wordpress');
+    define('DB_USER', 'postgres');
     define('DB_PASSWORD', '');
-    define('DB_HOST', 'localhost');
+    define('DB_HOST', 'localhost:5432');
+    define('DB_TYPE', 'postgresql');
 }
 
 define('DB_CHARSET', 'utf8');
