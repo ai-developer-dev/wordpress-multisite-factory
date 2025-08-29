@@ -1,21 +1,20 @@
 FROM wordpress:6.4-apache
 
-# Install PHP extensions for both MySQL and PostgreSQL
-RUN docker-php-ext-install mysqli pdo pdo_mysql pdo_pgsql
-
-# Fix Apache ServerName warning
-RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
-
 # Copy WordPress files
 COPY wordpress/ /var/www/html/
 
 # Set permissions
 RUN chown -R www-data:www-data /var/www/html
 
-# Copy startup script
-COPY start.sh /start.sh
-RUN chmod +x /start.sh
+# Simple port handling for Railway
+RUN echo '#!/bin/bash' > /entrypoint.sh && \
+    echo 'if [ "$PORT" ]; then' >> /entrypoint.sh && \
+    echo '  sed -i "s/80/$PORT/g" /etc/apache2/sites-available/000-default.conf' >> /entrypoint.sh && \
+    echo '  sed -i "s/80/$PORT/g" /etc/apache2/ports.conf' >> /entrypoint.sh && \
+    echo 'fi' >> /entrypoint.sh && \
+    echo 'apache2-foreground' >> /entrypoint.sh && \
+    chmod +x /entrypoint.sh
 
 EXPOSE 80
 
-CMD ["/start.sh"]
+CMD ["/entrypoint.sh"]
