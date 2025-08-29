@@ -3,7 +3,7 @@ builder = "dockerfile"
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "/usr/local/bin/start-apache.sh"
+startCommand = "apache2-foreground"
 healthcheckPath = "/health.php"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"

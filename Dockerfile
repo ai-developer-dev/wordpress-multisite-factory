@@ -15,7 +15,6 @@ RUN apt-get update && apt-get install -y \
     unzip \
     curl \
     ca-certificates \
-    gettext-base \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -54,20 +53,10 @@ RUN a2enconf wordpress
 # Enable required Apache modules
 RUN a2enmod rewrite headers expires
 
-# Create startup script to handle environment variables in Apache config
-RUN echo '#!/bin/bash\n\
-# Substitute environment variables in Apache configuration\n\
-envsubst < /etc/apache2/conf-available/wordpress.conf > /etc/apache2/conf-enabled/wordpress.conf.tmp\n\
-mv /etc/apache2/conf-enabled/wordpress.conf.tmp /etc/apache2/conf-enabled/wordpress.conf\n\
-\n\
-# Start Apache\n\
-exec apache2-foreground\n\
-' > /usr/local/bin/start-apache.sh && chmod +x /usr/local/bin/start-apache.sh
-
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost/ || exit 1
 
 EXPOSE 80
 
-CMD ["/usr/local/bin/start-apache.sh"]
+CMD ["apache2-foreground"]
