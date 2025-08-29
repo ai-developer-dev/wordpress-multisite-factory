@@ -21,7 +21,7 @@ RUN apt-get update && apt-get install -y \
 # Configure GD extension FIRST with all dependencies
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp
 
-# Install PHP extensions in correct order
+# Install PHP extensions in correct order (opcache is already enabled in base image)
 RUN docker-php-ext-install -j$(nproc) \
     zip \
     mysqli \
@@ -29,8 +29,7 @@ RUN docker-php-ext-install -j$(nproc) \
     exif \
     intl \
     curl \
-    mbstring \
-    opcache
+    mbstring
 
 # Set PHP configuration for production
 RUN echo "memory_limit = 256M" > /usr/local/etc/php/conf.d/memory-limit.ini \
@@ -61,10 +60,16 @@ ENV PORT=80
 
 # Create simple startup script for Railway
 RUN echo '#!/bin/bash\n\
+set -e\n\
 PORT=${PORT:-80}\n\
-echo "Starting Apache on port $PORT"\n\
-sed -i "s/Listen 80/Listen $PORT/g" /etc/apache2/ports.conf\n\
-sed -i "s/:80>/:$PORT>/g" /etc/apache2/sites-available/000-default.conf\n\
+echo "=== Railway Apache Startup ==="\n\
+echo "PORT: $PORT"\n\
+echo "Updating Apache configuration..."\n\
+sed -i "s/Listen 80/Listen $PORT/g" /etc/apache2/ports.conf || echo "Failed to update ports.conf"\n\
+sed -i "s/:80>/:$PORT>/g" /etc/apache2/sites-available/000-default.conf || echo "Failed to update 000-default.conf"\n\
+echo "Checking Apache configuration..."\n\
+apache2ctl configtest || echo "Apache config test failed"\n\
+echo "Starting Apache on port $PORT..."\n\
 exec apache2-foreground\n\
 ' > /start-apache.sh && chmod +x /start-apache.sh
 
