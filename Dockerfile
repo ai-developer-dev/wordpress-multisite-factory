@@ -55,24 +55,6 @@ RUN a2enconf wordpress
 # Enable required Apache modules
 RUN a2enmod rewrite headers expires
 
-# Railway uses PORT environment variable
-ENV PORT=80
+EXPOSE 80
 
-# Create simple startup script for Railway
-RUN echo '#!/bin/bash\n\
-set -e\n\
-PORT=${PORT:-80}\n\
-echo "=== Railway Apache Startup ==="\n\
-echo "PORT: $PORT"\n\
-echo "Updating Apache configuration..."\n\
-sed -i "s/Listen 80/Listen $PORT/g" /etc/apache2/ports.conf || echo "Failed to update ports.conf"\n\
-sed -i "s/:80>/:$PORT>/g" /etc/apache2/sites-available/000-default.conf || echo "Failed to update 000-default.conf"\n\
-echo "Checking Apache configuration..."\n\
-apache2ctl configtest || echo "Apache config test failed"\n\
-echo "Starting Apache on port $PORT..."\n\
-exec apache2-foreground\n\
-' > /start-apache.sh && chmod +x /start-apache.sh
-
-EXPOSE $PORT
-
-CMD ["/start-apache.sh"]
+CMD ["apache2-foreground"]
