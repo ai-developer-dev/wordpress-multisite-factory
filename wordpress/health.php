@@ -13,12 +13,19 @@ if (!defined('ABSPATH')) {
         'status' => 'ok',
         'timestamp' => time(),
         'version' => '1.0.0',
-        'environment' => getenv('RAILWAY_ENVIRONMENT') ?: 'development',
+        'environment' => getenv('RAILWAY_ENVIRONMENT') ?: 'production',
+        'railway' => [
+            'port' => getenv('PORT'),
+            'static_url' => getenv('RAILWAY_STATIC_URL'),
+            'deployment_id' => getenv('RAILWAY_DEPLOYMENT_ID'),
+            'service_id' => getenv('RAILWAY_SERVICE_ID')
+        ],
         'server' => [
             'php_version' => phpversion(),
             'memory_usage' => memory_get_usage(true),
             'memory_limit' => ini_get('memory_limit'),
-            'max_execution_time' => ini_get('max_execution_time')
+            'max_execution_time' => ini_get('max_execution_time'),
+            'document_root' => $_SERVER['DOCUMENT_ROOT'] ?? 'unknown'
         ],
         'extensions' => [
             'gd' => extension_loaded('gd'),
@@ -26,7 +33,9 @@ if (!defined('ABSPATH')) {
             'zip' => extension_loaded('zip'),
             'curl' => extension_loaded('curl'),
             'mbstring' => extension_loaded('mbstring'),
-            'opcache' => extension_loaded('opcache')
+            'opcache' => extension_loaded('opcache'),
+            'exif' => extension_loaded('exif'),
+            'intl' => extension_loaded('intl')
         ]
     ];
     
@@ -47,21 +56,58 @@ if (!defined('ABSPATH')) {
             $db_version = $stmt->fetch(PDO::FETCH_ASSOC);
             $health_data['database'] = [
                 'status' => 'connected',
-                'version' => $db_version['version']
+                'version' => $db_version['version'],
+                'host' => $database_url['host']
             ];
         } catch (PDOException $e) {
             $health_data['database'] = [
                 'status' => 'error',
-                'message' => 'Database connection failed'
+                'message' => 'Database connection failed',
+                'error_code' => $e->getCode()
             ];
             $health_data['status'] = 'degraded';
             http_response_code(503);
         }
     } else {
-        $health_data['database'] = [
-            'status' => 'not_configured',
-            'message' => 'DATABASE_URL not set'
-        ];
+        // Try fallback connection with individual env vars
+        $db_host = getenv('WORDPRESS_DB_HOST');
+        $db_name = getenv('WORDPRESS_DB_NAME');
+        $db_user = getenv('WORDPRESS_DB_USER');
+        $db_pass = getenv('WORDPRESS_DB_PASSWORD');
+        
+        if ($db_host && $db_name && $db_user !== false) {
+            try {
+                $pdo = new PDO(
+                    "mysql:host={$db_host};dbname={$db_name}",
+                    $db_user,
+                    $db_pass,
+                    [
+                        PDO::ATTR_TIMEOUT => 5,
+                        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+                    ]
+                );
+                $stmt = $pdo->query('SELECT VERSION() as version');
+                $db_version = $stmt->fetch(PDO::FETCH_ASSOC);
+                $health_data['database'] = [
+                    'status' => 'connected',
+                    'version' => $db_version['version'],
+                    'connection_type' => 'individual_vars'
+                ];
+            } catch (PDOException $e) {
+                $health_data['database'] = [
+                    'status' => 'error',
+                    'message' => 'Database connection failed (fallback)',
+                    'error_code' => $e->getCode()
+                ];
+                $health_data['status'] = 'degraded';
+                http_response_code(503);
+            }
+        } else {
+            $health_data['database'] = [
+                'status' => 'not_configured',
+                'message' => 'No database configuration found'
+            ];
+        }
     }
     
     // Check file system permissions

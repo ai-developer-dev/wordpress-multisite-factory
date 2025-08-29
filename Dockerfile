@@ -1,6 +1,6 @@
 FROM wordpress:6.4-php8.2-apache
 
-# Install ALL required system packages BEFORE configuring PHP extensions
+# Install required system packages for PHP extensions
 RUN apt-get update && apt-get install -y \
     libzip-dev \
     libpng-dev \
@@ -10,19 +10,15 @@ RUN apt-get update && apt-get install -y \
     libicu-dev \
     libonig-dev \
     libcurl4-openssl-dev \
-    pkg-config \
     zip \
     unzip \
     curl \
-    ca-certificates \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Configure GD extension FIRST with all dependencies
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp
-
-# Install PHP extensions in correct order (opcache is already enabled in base image)
-RUN docker-php-ext-install -j$(nproc) \
+# Configure and install PHP extensions
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
+    && docker-php-ext-install -j$(nproc) \
     zip \
     mysqli \
     gd \
@@ -41,9 +37,6 @@ RUN echo "memory_limit = 256M" > /usr/local/etc/php/conf.d/memory-limit.ini \
 COPY wordpress/ /var/www/html/
 COPY wp-plugin/site-factory/ /var/www/html/wp-content/plugins/site-factory/
 
-# Ensure Railway wp-config is used
-RUN cp /var/www/html/wp-config-railway.php /var/www/html/wp-config.php
-
 # Set proper permissions
 RUN chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html
@@ -55,6 +48,14 @@ RUN a2enconf wordpress
 # Enable required Apache modules
 RUN a2enmod rewrite headers expires
 
-EXPOSE 80
+# Configure Apache to listen on Railway's PORT environment variable
+RUN sed -i 's/Listen 80/Listen ${PORT:-80}/' /etc/apache2/ports.conf
 
-CMD ["apache2-foreground"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-80}/health.php || exit 1
+
+EXPOSE ${PORT:-80}
+
+# Start Apache with proper port substitution
+CMD sed -i "s/80/${PORT:-80}/g" /etc/apache2/sites-available/000-default.conf /etc/apache2/conf-available/wordpress.conf && apache2-foreground
