@@ -1,20 +1,20 @@
 <?php
-// WordPress configuration for Railway with PostgreSQL
+// WordPress configuration for Railway with MySQL
 
-// Database configuration from Railway's DATABASE_URL (PostgreSQL)
+// Database configuration from Railway's DATABASE_URL (MySQL)
 $database_url = getenv('DATABASE_URL');
 if ($database_url) {
     $db_parts = parse_url($database_url);
     
-    // For PostgreSQL on Railway
+    // For MySQL on Railway
     define('DB_NAME', ltrim($db_parts['path'], '/'));
     define('DB_USER', $db_parts['user']);
     define('DB_PASSWORD', $db_parts['pass']);
-    define('DB_HOST', $db_parts['host'] . ':' . ($db_parts['port'] ?: 5432));
+    define('DB_HOST', $db_parts['host'] . ':' . ($db_parts['port'] ?: 3306));
 } else {
     // Fallback
-    define('DB_NAME', 'wordpress');
-    define('DB_USER', 'postgres');
+    define('DB_NAME', 'railway');
+    define('DB_USER', 'root');
     define('DB_PASSWORD', '');
     define('DB_HOST', 'localhost');
 }
