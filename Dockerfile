@@ -45,6 +45,10 @@ RUN chown -R www-data:www-data /var/www/html \
 COPY apache/wordpress.conf /etc/apache2/conf-available/wordpress.conf
 RUN a2enconf wordpress
 
+# Copy startup script
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
 # Enable required Apache modules
 RUN a2enmod rewrite headers expires
 
@@ -54,8 +58,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 
 EXPOSE 80
 
-# Start Apache with proper port substitution for Railway
-CMD sed -i "s/Listen 80/Listen ${PORT:-80}/g" /etc/apache2/ports.conf && \
-    sed -i "s/:80/:${PORT:-80}/g" /etc/apache2/sites-available/000-default.conf && \
-    sed -i "s/*:80/*:${PORT:-80}/g" /etc/apache2/conf-available/wordpress.conf && \
-    apache2-foreground
+# Use custom entrypoint script
+CMD ["/usr/local/bin/docker-entrypoint.sh"]
