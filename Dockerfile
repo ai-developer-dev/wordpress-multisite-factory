@@ -53,10 +53,13 @@ RUN a2enconf wordpress
 # Enable required Apache modules
 RUN a2enmod rewrite headers expires
 
+# Set the port environment variable for Railway
+ENV PORT=80
+
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost/ || exit 1
+    CMD curl -f http://localhost:${PORT}/ || exit 1
 
-EXPOSE 80
+EXPOSE ${PORT}
 
 CMD ["apache2-foreground"]
