@@ -3,6 +3,9 @@ FROM wordpress:6.4-apache
 # Install basic PHP extensions
 RUN docker-php-ext-install mysqli
 
+# Fix Apache ServerName warning
+RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
+
 # Copy WordPress files
 COPY wordpress/ /var/www/html/
 
