@@ -26,14 +26,8 @@ if ($database_url) {
 define('DB_CHARSET', 'utf8mb4');
 define('DB_COLLATE', '');
 
-// WordPress multisite configuration
-define('WP_ALLOW_MULTISITE', true);
-define('MULTISITE', true);
-define('SUBDOMAIN_INSTALL', false); // Use subdirectory install for Railway
-define('DOMAIN_CURRENT_SITE', $_SERVER['HTTP_HOST'] ?? getenv('RAILWAY_PUBLIC_DOMAIN') ?? 'localhost');
-define('PATH_CURRENT_SITE', '/');
-define('SITE_ID_CURRENT_SITE', 1);
-define('BLOG_ID_CURRENT_SITE', 1);
+// Single site WordPress for Railway simplicity
+// Multisite can be enabled later if needed
 
 // Security keys from environment variables
 define('AUTH_KEY',         getenv('WORDPRESS_AUTH_KEY') ?: 'put your unique phrase here');
