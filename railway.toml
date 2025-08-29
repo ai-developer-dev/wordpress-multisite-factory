@@ -1,0 +1,53 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "apache2-foreground"
+healthcheckPath = "/health.php"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+numReplicas = 1
+
+[[services]]
+name = "wordpress"
+source = "."
+plan = "starter"
+
+[[services.volumes]]
+name = "wordpress-uploads"
+path = "/var/www/html/wp-content/uploads"
+size = 5
+
+[[services.volumes]]
+name = "wordpress-plugins"
+path = "/var/www/html/wp-content/plugins"
+size = 2
+
+[[services.volumes]]
+name = "site-factory-logs"
+path = "/var/log/site-factory"
+size = 1
+
+[services.env]
+WORDPRESS_DEBUG = "false"
+WORDPRESS_DEBUG_LOG = "false"
+WORDPRESS_TABLE_PREFIX = "wp_"
+SF_LOG_LEVEL = "info"
+SF_API_ENABLED = "true"
+SF_MAX_SITES_PER_REQUEST = "1"
+SF_API_RATE_LIMIT = "10"
+
+# Security keys (these should be set in Railway dashboard)
+# WORDPRESS_AUTH_KEY = ""
+# WORDPRESS_SECURE_AUTH_KEY = ""
+# WORDPRESS_LOGGED_IN_KEY = ""
+# WORDPRESS_NONCE_KEY = ""
+# WORDPRESS_AUTH_SALT = ""
+# WORDPRESS_SECURE_AUTH_SALT = ""
+# WORDPRESS_LOGGED_IN_SALT = ""
+# WORDPRESS_NONCE_SALT = ""
+
+# Database connection will be automatically provided by Railway MySQL service
+# DATABASE_URL = "mysql://user:password@host:port/database"

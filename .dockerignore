@@ -24,7 +24,6 @@ infrastructure/
 # Local development
 docker-compose.yml
 .dockerignore
-Dockerfile
 
 # IDE files
 .vscode/

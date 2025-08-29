@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { createWordPressSite, validateBusinessForm, trackSiteCreation } from '../lib/api'
 
 interface FormData {
   businessName: string
@@ -33,10 +34,12 @@ export default function Modal({ isOpen, onClose }: ModalProps) {
   })
   
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitResult, setSubmitResult] = useState<{
     success: boolean
     message: string
     siteUrl?: string
+    adminUrl?: string
   } | null>(null)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -45,35 +48,61 @@ export default function Modal({ isOpen, onClose }: ModalProps) {
       ...prev,
       [name]: value
     }))
+    
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }))
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
     setSubmitResult(null)
+    setErrors({})
+
+    // Combine address fields
+    const address = [
+      formData.street,
+      formData.city,
+      formData.state,
+      formData.zip
+    ].filter(Boolean).join(', ')
+
+    // Prepare business data
+    const businessData = {
+      businessName: formData.businessName,
+      email: formData.email,
+      phone: formData.phone,
+      address: address || formData.street || 'No address provided',
+      businessType: formData.businessType.toLowerCase().replace(/\s+/g, '_'),
+      template: 'default'
+    }
+
+    // Validate form data
+    const validation = validateBusinessForm(businessData)
+    
+    if (!validation.isValid) {
+      setErrors(validation.errors)
+      setIsSubmitting(false)
+      return
+    }
 
     try {
-      const response = await fetch('/api/create-site', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          site_title: formData.businessName,
-          admin_email: formData.email,
-          desired_domain: formData.businessName.toLowerCase().replace(/[^a-z0-9]/g, '-'),
-          blueprint: 'cpa-onepage',
-          meta: formData
-        }),
-      })
+      const result = await createWordPressSite(businessData)
 
-      const result = await response.json()
+      if (result.success) {
+        // Track successful creation
+        trackSiteCreation(result)
 
-      if (response.ok) {
         setSubmitResult({
           success: true,
-          message: 'Your website has been created successfully!',
-          siteUrl: result.siteUrl
+          message: 'Your website has been created successfully! Check your email for login credentials.',
+          siteUrl: result.site_url,
+          adminUrl: result.admin_url
         })
       } else {
         setSubmitResult({
@@ -81,10 +110,22 @@ export default function Modal({ isOpen, onClose }: ModalProps) {
           message: result.message || 'Failed to create website. Please try again.'
         })
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Site creation error:', error)
+      
+      let errorMessage = 'An error occurred. Please check your connection and try again.'
+      
+      if (error.status === 429) {
+        errorMessage = 'Too many requests. Please wait a moment and try again.'
+      } else if (error.status === 401) {
+        errorMessage = 'Authentication failed. Please contact support.'
+      } else if (error.message) {
+        errorMessage = error.message
+      }
+
       setSubmitResult({
         success: false,
-        message: 'An error occurred. Please check your connection and try again.'
+        message: errorMessage
       })
     } finally {
       setIsSubmitting(false)
@@ -188,9 +229,12 @@ export default function Modal({ isOpen, onClose }: ModalProps) {
                     value={formData.businessName}
                     onChange={handleInputChange}
                     required
-                    className="form-input"
+                    className={`form-input ${errors.businessName ? 'border-red-500' : ''}`}
                     placeholder="Acme Corporation"
                   />
+                  {errors.businessName && (
+                    <p className="mt-1 text-sm text-red-600">{errors.businessName}</p>
+                  )}
                 </div>
                 
                 <div>
@@ -290,9 +334,12 @@ export default function Modal({ isOpen, onClose }: ModalProps) {
                     value={formData.email}
                     onChange={handleInputChange}
                     required
-                    className="form-input"
+                    className={`form-input ${errors.email ? 'border-red-500' : ''}`}
                     placeholder="you@example.com"
                   />
+                  {errors.email && (
+                    <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                  )}
                 </div>
                 
                 <div>
@@ -305,9 +352,12 @@ export default function Modal({ isOpen, onClose }: ModalProps) {
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    className="form-input"
+                    className={`form-input ${errors.phone ? 'border-red-500' : ''}`}
                     placeholder="(555) 123-4567"
                   />
+                  {errors.phone && (
+                    <p className="mt-1 text-sm text-red-600">{errors.phone}</p>
+                  )}
                 </div>
               </div>
 

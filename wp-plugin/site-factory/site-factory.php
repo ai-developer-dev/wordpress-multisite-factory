@@ -49,12 +49,22 @@ function sf_init() {
         return;
     }
     
-    // Initialize components
-    new SiteFactory\SF_REST();
-    new SiteFactory\SF_Blueprint();
-    new SiteFactory\SF_Users();
-    new SiteFactory\SF_Logger();
-    new SiteFactory\SF_Security();
+    // Only initialize if classes exist
+    if (class_exists('SiteFactory\\SF_REST')) {
+        new SiteFactory\SF_REST();
+    }
+    if (class_exists('SiteFactory\\SF_Blueprint')) {
+        new SiteFactory\SF_Blueprint();
+    }
+    if (class_exists('SiteFactory\\SF_Users')) {
+        new SiteFactory\SF_Users();
+    }
+    if (class_exists('SiteFactory\\SF_Logger')) {
+        new SiteFactory\SF_Logger();
+    }
+    if (class_exists('SiteFactory\\SF_Security')) {
+        new SiteFactory\SF_Security();
+    }
     
     // Add admin menu
     add_action('network_admin_menu', 'sf_admin_menu');
