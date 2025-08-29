@@ -56,28 +56,18 @@ RUN a2enconf wordpress
 # Enable required Apache modules
 RUN a2enmod rewrite headers expires
 
-# Set default port but allow Railway to override
+# Railway uses PORT environment variable
 ENV PORT=80
 
-# Configure Apache to listen on the PORT variable
-RUN sed -i 's/Listen 80/Listen ${PORT}/' /etc/apache2/ports.conf && \
-    sed -i 's/:80>/:${PORT}>/' /etc/apache2/sites-available/000-default.conf
-
-# Create startup script that handles dynamic port
+# Create simple startup script for Railway
 RUN echo '#!/bin/bash\n\
-# Use PORT environment variable or default to 80\n\
-export PORT=${PORT:-80}\n\
-# Update Apache configuration with actual port\n\
-sed -i "s/Listen .*/Listen $PORT/" /etc/apache2/ports.conf\n\
-sed -i "s/<VirtualHost .*>/<VirtualHost *:$PORT>/" /etc/apache2/sites-available/000-default.conf\n\
-# Start Apache\n\
+PORT=${PORT:-80}\n\
+echo "Starting Apache on port $PORT"\n\
+sed -i "s/Listen 80/Listen $PORT/g" /etc/apache2/ports.conf\n\
+sed -i "s/:80>/:$PORT>/g" /etc/apache2/sites-available/000-default.conf\n\
 exec apache2-foreground\n\
-' > /usr/local/bin/start-apache-with-port.sh && chmod +x /usr/local/bin/start-apache-with-port.sh
+' > /start-apache.sh && chmod +x /start-apache.sh
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:${PORT}/ || exit 1
+EXPOSE $PORT
 
-EXPOSE ${PORT}
-
-CMD ["/usr/local/bin/start-apache-with-port.sh"]
+CMD ["/start-apache.sh"]
